@@ -13,12 +13,10 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package com.baojie.fbq;
+package com.baojie.fbq.queue;
 
 import com.baojie.fbq.exception.FileEOF;
 import com.baojie.fbq.exception.FileFormat;
-import com.baojie.fbq.log.Entity;
-import com.baojie.fbq.log.Index;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,7 +43,7 @@ public class FSQueue {
     private int readerIndex = -1;
     private int writerIndex = -1;
 
-    public FSQueue(String dir) throws IOException, FileFormat {
+    protected FSQueue(String dir) throws IOException, FileFormat {
         this(new File(dir));
     }
 
@@ -57,11 +55,11 @@ public class FSQueue {
      * @throws IOException
      * @throws FileFormat
      */
-    public FSQueue(String dir, int entityLimitLength) throws IOException, FileFormat {
+    protected FSQueue(String dir, int entityLimitLength) throws IOException, FileFormat {
         this(new File(dir), entityLimitLength);
     }
 
-    public FSQueue(File dir) throws IOException, FileFormat {
+    protected FSQueue(File dir) throws IOException, FileFormat {
         this(dir, 1024 * 1024 * 2);
     }
 
@@ -73,11 +71,14 @@ public class FSQueue {
      * @throws IOException
      * @throws FileFormat
      */
-    public FSQueue(File dir, int entityLimitLength) throws IOException, FileFormat {
+    protected FSQueue(File dir, int entityLimitLength) throws IOException, FileFormat {
         if (dir.exists() == false && dir.isDirectory() == false) {
             if (dir.mkdirs() == false) {
                 throw new IOException("create dir error");
             }
+        }
+        if (entityLimitLength < FQueue.pageSize()) {
+            throw new IllegalArgumentException("error limit length, pageSize=" + FQueue.pageSize());
         }
         this.entityLimitLength = entityLimitLength;
         path = dir.getAbsolutePath();
@@ -106,7 +107,7 @@ public class FSQueue {
     private void rotateNextLogWriter() throws IOException, FileFormat {
         writerIndex = writerIndex + 1;
         writerHandle.putNextFileNumber(writerIndex);
-        if (readerHandle != writerHandle) {
+        if (readerHandle != writerHandle) {// 如果这里关闭了，那么readhandler也关闭了
             writerHandle.close();
         }
         idx.putWriterIndex(writerIndex);
@@ -114,28 +115,20 @@ public class FSQueue {
     }
 
     /**
-     * 向队列存储添加一个字符串
-     *
-     * @param message message
-     * @throws IOException
-     * @throws FileFormat
-     */
-    public void add(String message) throws IOException, FileFormat {
-        add(message.getBytes());
-    }
-
-    /**
      * 向队列存储添加一个byte数组
      *
-     * @param message
+     * @param e
      * @throws IOException
      * @throws FileFormat
      */
-    public void add(byte[] message) throws IOException, FileFormat {
-        short status = writerHandle.write(message);
+    public void add(byte[] e) throws IOException, FileFormat {
+        if (null == e) {
+            throw new NullPointerException();
+        }
+        short status = writerHandle.write(e);
         if (status == Entity.WRITEFULL) {
             rotateNextLogWriter();
-            status = writerHandle.write(message);
+            status = writerHandle.write(e);
         }
         if (status == Entity.WRITESUCCESS) {
             idx.incrementSize();
@@ -164,6 +157,8 @@ public class FSQueue {
                 bytes = readerHandle.read(commit);
             } catch (FileEOF e1) {
                 throw new FileFormat(e1);
+            } catch (Throwable t) {
+                throw new IOException(t.getCause());
             }
         }
         if (commit && bytes != null) {
@@ -205,7 +200,7 @@ public class FSQueue {
         idx.close();
     }
 
-    public int getQueueSize() {
-        return idx.getSize();
+    public int size() {
+        return idx.size();
     }
 }

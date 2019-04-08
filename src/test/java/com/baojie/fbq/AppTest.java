@@ -1,17 +1,20 @@
 package com.baojie.fbq;
 
+import com.baojie.fbq.queue.FQueue;
 import junit.framework.TestCase;
+
 import java.util.LinkedList;
 import java.util.List;
 
 /**
  * Unit test for simple App.
  */
-public class AppTest  extends TestCase {
-    private static FQueue queue;
+public class AppTest extends TestCase {
+    private static FQueue<byte[]> queue;
+
     static {
         try {
-            queue = new FQueue("db");
+            queue = new FQueue<>("db", 1024 * 1024 * 4, Integer.MAX_VALUE);
             queue.clear();
         } catch (Exception e) {
             e.printStackTrace();

@@ -16,6 +16,7 @@
 package com.baojie.fbq.log;
 
 import com.baojie.fbq.clean.LocalCleaner;
+import com.baojie.fbq.queue.Entity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
