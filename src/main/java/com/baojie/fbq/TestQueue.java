@@ -14,23 +14,24 @@ public class TestQueue {
         //FQueue fQueue = new FQueue("/home/baojie/liuxin/source/fileblockqueue", 200);
         FQueue<Runnable> fQueue = new FQueue<>("/home/baojie/liuxin/source/fileblockqueue", 1024 * 1024 * 4,
                 10000000);
-        ThreadPoolExecutor pool = new ThreadPoolExecutor(32, 512, 180, TimeUnit.SECONDS, fQueue);
+        ThreadPoolExecutor pool = new ThreadPoolExecutor(4, 512, 180, TimeUnit.SECONDS, fQueue);
 
+        pool.prestartAllCoreThreads();
         TimeUnit.SECONDS.sleep(15);
 
 
         for (int i=0;i<32 ;i++ ) {
-            Runer one = new Runer(i + "");
-            pool.submit(one);
+            //Runer one = new Runer(i + "");
+            //pool.submit(one);
         }
 
         TimeUnit.SECONDS.sleep(15);
         int i=32;
-        for (;; ) {
-            Runer one = new Runer(i + "");
-            fQueue.put(one);
-            i++;
-        }
+       // for (;; ) {
+       //     Runer one = new Runer(i + "");
+       //     fQueue.put(one);
+       //     i++;
+       // }
 
     }
 
