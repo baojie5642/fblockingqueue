@@ -15,9 +15,11 @@
  */
 package com.baojie.fbq.queue;
 
-
 import com.baojie.fbq.clean.LocalCleaner;
 import com.baojie.fbq.exception.FileFormat;
+import com.baojie.fbq.status.FileInfo;
+import com.baojie.fbq.status.Position;
+import com.baojie.make.info.RafState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,50 +30,42 @@ import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileChannel.MapMode;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * 数据索引文件
  */
-public class Index {
-    private static final Logger log = LoggerFactory.getLogger(Index.class);
-    private static final int INDEX_LIMIT_LENGTH = 32;
-    private static final String INDEX_FILE_NAME = "fq.idx";
+public class Index extends AbstractIndex {
 
-    private RandomAccessFile dbRandFile;
-    private FileChannel fc;
-    private MappedByteBuffer mappedByteBuffer;
+    private static final Logger log = LoggerFactory.getLogger(Index.class);
+
+    private final FileChannel fc;
+    private final RandomAccessFile raf;
+    private final MappedByteBuffer mbf;
 
     /**
      * 文件操作位置信息
      */
-    private volatile String magicString = null;
-    private volatile int version = -1;
-    private volatile int readerPosition = -1;
-    private volatile int writerPosition = -1;
-    private volatile int readerIndex = -1;
-    private volatile int writerIndex = -1;
-    private final AtomicInteger size = new AtomicInteger();
 
     protected Index(String path) throws IOException, FileFormat {
-        File dbFile = new File(path, INDEX_FILE_NAME);
-
+        final String real = check(path);
+        // 创建持久化的队列信息的文件
+        final File info = info(real);
         // 文件不存在，创建文件
-        if (dbFile.exists() == false) {
-            dbFile.createNewFile();
-            dbRandFile = new RandomAccessFile(dbFile, "rwd");
-            initIdxFile();
+        if (info.exists() == false) {
+            info.createNewFile();
+            raf = raf(info, RafState.O_DSYNC.value());
+            index();
         } else {
-            dbRandFile = new RandomAccessFile(dbFile, "rwd");
-            if (dbRandFile.length() < INDEX_LIMIT_LENGTH) {
-                throw new FileFormat("file format error.");
+            raf = raf(info, RafState.O_DSYNC.value());
+            if (raf.length() < Position.INDEX_LENGTH.value()) {
+                throw new FileFormat("index length error");
             }
-            byte[] bytes = new byte[INDEX_LIMIT_LENGTH];
-            dbRandFile.read(bytes);
+            byte[] bytes = new byte[Position.INDEX_LENGTH.value()];
+            raf.read(bytes);
             ByteBuffer buffer = ByteBuffer.wrap(bytes);
             bytes = new byte[Entity.MAGIC.getBytes().length];
             buffer.get(bytes);
-            magicString = new String(bytes);
+            magic = new String(bytes);
             version = buffer.getInt();
             readerPosition = buffer.getInt();
             writerPosition = buffer.getInt();
@@ -79,37 +73,40 @@ public class Index {
             writerIndex = buffer.getInt();
             int sz = buffer.getInt();
             if (readerPosition == writerPosition && readerIndex == writerIndex && sz <= 0) {
-                initIdxFile();
+                index();
             } else {
                 size.set(sz);
             }
         }
-        fc = dbRandFile.getChannel();
-        mappedByteBuffer = fc.map(MapMode.READ_WRITE, 0, INDEX_LIMIT_LENGTH);
+        fc = raf.getChannel();
+        mbf = fc.map(MapMode.READ_WRITE, 0, Position.INDEX_LENGTH.value());
     }
+
+
+
     // 记录文件的信息以及读取指针的位置还有版本,，总共32字节
-    private void initIdxFile() throws IOException {
-        magicString = Entity.MAGIC;
+    private final void index() throws IOException {
+        magic = FileInfo.MAGIC.value();
         version = 1;
-        readerPosition = Entity.MESSAGE_START_POSITION;// 先将头部信息设置好，然后下面再设置头部信息
-        writerPosition = Entity.MESSAGE_START_POSITION;
+        readerPosition = Position.START.value();// 先将头部信息设置好，然后下面再设置头部信息
+        writerPosition = Position.START.value();
         readerIndex = 1;
         writerIndex = 1;
-        dbRandFile.setLength(32);
-        dbRandFile.seek(0); // 设置起始读取位置
-        dbRandFile.write(magicString.getBytes());// magic
-        dbRandFile.writeInt(version);// 8 version
-        dbRandFile.writeInt(readerPosition);// 12 reader position
-        dbRandFile.writeInt(writerPosition);// 16 write position
-        dbRandFile.writeInt(readerIndex);// 20 reader index
-        dbRandFile.writeInt(writerIndex);// 24 writer index
-        dbRandFile.writeInt(0);// 28 size
+        raf.setLength(32);
+        raf.seek(0); // 设置起始读取位置
+        raf.write(magic.getBytes());// magic
+        raf.writeInt(version);// 8 version
+        raf.writeInt(readerPosition);// 12 reader position
+        raf.writeInt(writerPosition);// 16 write position
+        raf.writeInt(readerIndex);// 20 reader index
+        raf.writeInt(writerIndex);// 24 writer index
+        raf.writeInt(0);// 28 size
     }
 
     protected void clear() throws IOException {
-        mappedByteBuffer.clear();
-        mappedByteBuffer.force();
-        initIdxFile();
+        mbf.clear();
+        mbf.force();
+        index();
     }
 
     /**
@@ -118,8 +115,8 @@ public class Index {
      * @param pos
      */
     protected void putWriterPosition(int pos) {
-        mappedByteBuffer.position(16);
-        mappedByteBuffer.putInt(pos);
+        mbf.position(16);
+        mbf.putInt(pos);
         this.writerPosition = pos;
     }
 
@@ -129,8 +126,8 @@ public class Index {
      * @param pos
      */
     protected void putReaderPosition(int pos) {
-        mappedByteBuffer.position(12);
-        mappedByteBuffer.putInt(pos);
+        mbf.position(12);
+        mbf.putInt(pos);
         this.readerPosition = pos;
     }
 
@@ -140,8 +137,8 @@ public class Index {
      * @param index
      */
     protected void putWriterIndex(int index) {
-        mappedByteBuffer.position(24);
-        mappedByteBuffer.putInt(index);
+        mbf.position(24);
+        mbf.putInt(index);
         this.writerIndex = index;
     }
 
@@ -151,81 +148,61 @@ public class Index {
      * @param index
      */
     protected void putReaderIndex(int index) {
-        mappedByteBuffer.position(20);
-        mappedByteBuffer.putInt(index);
+        mbf.position(20);
+        mbf.putInt(index);
         this.readerIndex = index;
     }
 
     protected void incrementSize() {
         int num = size.incrementAndGet();
-        mappedByteBuffer.position(28);
-        mappedByteBuffer.putInt(num);
+        mbf.position(28);
+        mbf.putInt(num);
     }
 
     protected void decrementSize() {
         int num = size.decrementAndGet();
-        mappedByteBuffer.position(28);
-        mappedByteBuffer.putInt(num);
-    }
-
-    protected String getMagicString() {
-        return magicString;
-    }
-
-    protected int getVersion() {
-        return version;
-    }
-
-    protected int getReaderPosition() {
-        return readerPosition;
-    }
-
-    protected int getWriterPosition() {
-        return writerPosition;
-    }
-
-    protected int getReaderIndex() {
-        return readerIndex;
-    }
-
-    protected int getWriterIndex() {
-        return writerIndex;
-    }
-
-    protected int size() {
-        return size.get();
+        mbf.position(28);
+        mbf.putInt(num);
     }
 
     /**
      * 关闭索引文件
      */
-    protected void close() throws IOException {
-        mappedByteBuffer.force();
-        LocalCleaner.clean(mappedByteBuffer);
-        fc.close();
-        dbRandFile.close();
-        mappedByteBuffer = null;
-        fc = null;
-        dbRandFile = null;
+    protected final void close() throws IOException {
+        try {
+            closeBuffer();
+        } finally {
+            closeChannel();
+        }
     }
 
-    protected String headerInfo() {
-        StringBuilder sb = new StringBuilder();
-        sb.append(" magicString:");
-        sb.append(magicString);
-        sb.append(" version:");
-        sb.append(version);
-        sb.append(" readerPosition:");
-        sb.append(readerPosition);
-        sb.append(" writerPosition:");
-        sb.append(writerPosition);
-        sb.append(" size:");
-        sb.append(size);
-        sb.append(" readerIndex:");
-        sb.append(readerIndex);
-        sb.append(" writerIndex:");
-        sb.append(writerIndex);
-        return sb.toString();
+    private final void closeBuffer() {
+        try {
+            force();
+        } finally {
+            LocalCleaner.clean(mbf);
+        }
     }
+
+    private final void closeChannel() throws IOException {
+        try {
+            if (null != fc) {
+                fc.close();
+            }
+        } finally {
+            if (null != raf) {
+                raf.close();
+            }
+        }
+    }
+
+
+    private final void force() {
+        final MappedByteBuffer copy = this.mbf;
+        if (null != copy) {
+            copy.force();
+        }
+    }
+
 
 }

@@ -15,6 +15,8 @@
  */
 package com.baojie.fbq.clean;
 
+import com.baojie.fbq.util.JavaVersion;
+import com.baojie.fbq.util.LocalSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import sun.misc.Cleaner;
@@ -30,6 +32,8 @@ public class LocalCleaner {
 
     private static final Logger log = LoggerFactory.getLogger(LocalCleaner.class);
 
+    private static final boolean atLeastJvm9 = LocalSystem.isJavaVersionAtLeast(JavaVersion.JAVA_9);
+
     private static final String CLEAN_KEY = "cleaner";
 
     private LocalCleaner() {
@@ -43,7 +47,11 @@ public class LocalCleaner {
     }
 
     private static final void doClean(final Object buffer) {
-        AccessController.doPrivileged(new LocalAction(buffer));
+        if (atLeastJvm9) {
+
+        } else {
+            AccessController.doPrivileged(new LocalAction(buffer));
+        }
     }
 
     private static final Method cleanMethod(final Object buffer) {

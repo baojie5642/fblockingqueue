@@ -1,7 +1,6 @@
 package com.baojie.fbq;
 
 import com.baojie.fbq.queue.FQueue;
-import com.baojie.fbq.queue.FSQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

@@ -15,6 +15,7 @@
  */
 package com.baojie.fbq.exception;
 
+// 一些初始化的异常
 public class FileFormat extends Exception {
 
 	private static final long serialVersionUID = 6950322066714479555L;

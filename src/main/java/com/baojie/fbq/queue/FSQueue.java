@@ -25,11 +25,14 @@ import java.io.IOException;
 
 /**
  * 完成基于文件的先进先出的读写功能
+ * 优化文件的写入
  */
 public class FSQueue {
 
     private static final Logger log = LoggerFactory.getLogger(FSQueue.class);
+
     private int entityLimitLength;
+
     private String path = null;
     /**
      * 文件操作实例

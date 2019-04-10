@@ -15,6 +15,7 @@
  */
 package com.baojie.fbq.exception;
 
+// 读写指针超出数据范围的异常
 public class FileEOF extends Exception {
 
 	private static final long serialVersionUID = 4701796168682302255L;

@@ -55,21 +55,18 @@ public class FQueue<E> extends AbstractQueue<E> implements BlockingQueue<E>, jav
     }
 
     static class Node<E> {
+
         E item;
 
         Node(E x) {
             item = x;
         }
+
     }
 
-    /**
-     * Lock held by take, poll, etc
-     */
+
     private final ReentrantLock mainLock = new ReentrantLock();
 
-    /**
-     * Wait queue for waiting takes
-     */
     private final Condition mainContion = mainLock.newCondition();
 
 
