@@ -81,9 +81,9 @@ public class TestMFQueue {
         Thread put = new Thread(new Runnable() {
             @Override
             public void run() {
-                for (int i = 0; i < 10000000; i++) {
-                    mfq.offer((i + "").getBytes());
-                }
+                //for (int i = 0; i < 10000000; i++) {
+                //    mfq.offer((i + "").getBytes());
+                //}
             }
         });
 
@@ -95,12 +95,14 @@ public class TestMFQueue {
                     byte[] node = mfq.poll();
                     if (null != node) {
                         log.info(new String(node));
+                    } else {
+                        break;
                     }
                 }
             }
         });
 
-        //put.start();
+        put.start();
 
         take.start();
 

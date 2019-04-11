@@ -1,6 +1,5 @@
 package com.baojie.mfbq;
 
-import com.baojie.fbq.queue.Index;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -96,6 +95,7 @@ public class MFQueueBlock {
 
     public byte[] read() {
         byte[] bytes;
+        //
         int readNum = index.getReadNum();
         int readPosition = index.getReadPosition();
         int writeNum = index.getWriteNum();

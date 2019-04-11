@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
+import java.util.concurrent.locks.ReentrantLock;
 
 // 这个index借鉴别人代码
 // 1.设计上面不错,但是还没测试性能
@@ -19,7 +20,7 @@ import java.nio.channels.FileChannel;
 // 4.使用读写锁也没有问题,问题不在与锁,而在于锁竞争
 // 5.使用两个index map,同时子类使用两把锁来达到分别控制同一块磁盘存储的不同区域
 @sun.misc.Contended
-public abstract class AbstractIndex {
+public abstract class Index {
 
     protected volatile int readNum;        // 8    读索引文件号
     protected volatile int readPosition;   // 12   读索引位置
@@ -36,7 +37,7 @@ public abstract class AbstractIndex {
     private final MappedByteBuffer writeIndex;
     private final MappedByteBuffer readIndex;
 
-    public AbstractIndex(String path) throws IOException {
+    public Index(String path) throws IOException {
         final String real = check(path);
         final File file = file(real);
         if (file.exists()) {
@@ -123,83 +124,146 @@ public abstract class AbstractIndex {
         return new RandomAccessFile(info, mode);
     }
 
-    protected final int readNum() {
+    private final int rn() {
         return LocalPosition.READ_NUM_OFFSET.value();
     }
 
-    protected final int readPosition() {
+    private final int rp() {
         return LocalPosition.READ_POS_OFFSET.value();
     }
 
-    protected final int readCount() {
+    private final int rc() {
         return LocalPosition.READ_CNT_OFFSET.value();
     }
 
-    protected final int writeNum() {
+    private final int wn() {
         return LocalPosition.WRITE_NUM_OFFSET.value();
     }
 
-    protected final int writePosition() {
+    private final int wp() {
         return LocalPosition.WRITE_POS_OFFSET.value();
     }
 
-    protected final int writeCount() {
+    private final int wc() {
         return LocalPosition.WRITE_CNT_OFFSET.value();
     }
 
-    public final void putMagic() {
+    protected final void putMagic() {
         this.writeIndex.position(0);
         this.writeIndex.put(magic().getBytes());
     }
 
-    public final void putWritePosition(int writePosition) {
-        this.writeIndex.position(writePosition());
+    protected final void putWritePosition(int writePosition) {
+        this.writeIndex.position(wp());
         this.writeIndex.putInt(writePosition);
         this.writePosition = writePosition;
     }
 
-    public final void putWriteNum(int writeNum) {
-        this.writeIndex.position(writeNum());
+    protected final void putWriteNum(int writeNum) {
+        this.writeIndex.position(wn());
         this.writeIndex.putInt(writeNum);
         this.writeNum = writeNum;
     }
 
-    public final void putWriteCount(int writeCount) {
-        this.writeIndex.position(writeCount());
+    protected final void putWriteCount(int writeCount) {
+        this.writeIndex.position(wc());
         this.writeIndex.putInt(writeCount);
         this.writeCount = writeCount;
     }
 
-    public final void putReadNum(int readNum) {
-        this.readIndex.position(readNum());
+    protected final void putReadNum(int readNum) {
+        this.readIndex.position(rn());
         this.readIndex.putInt(readNum);
         this.readNum = readNum;
     }
 
-    public final void putReadPosition(int readPosition) {
-        this.readIndex.position(readPosition());
+    protected final void putReadPosition(int readPosition) {
+        this.readIndex.position(rp());
         this.readIndex.putInt(readPosition);
         this.readPosition = readPosition;
     }
 
-    public final void putReadCount(int readCount) {
-        this.readIndex.position(readCount());
+    protected final void putReadCount(int readCount) {
+        this.readIndex.position(rc());
         this.readIndex.putInt(readCount);
         this.readCount = readCount;
     }
 
-    public final void sync() {
+    protected final int getReadNum() {
+        return this.readNum;
+    }
+
+    protected final int getReadPosition() {
+        return this.readPosition;
+    }
+
+    protected final int getReadCount() {
+        return this.readCount;
+    }
+
+    protected final int getWriteNum() {
+        return this.writeNum;
+    }
+
+    protected final int getWritePosition() {
+        return this.writePosition;
+    }
+
+    protected final int getWriteCount() {
+        return this.writeCount;
+    }
+
+
+    protected final void doSync() {
         if (writeIndex != null) {
             writeIndex.force();
         }
     }
 
-    public final void close() throws IOException {
-        sync();
+    protected final void doReset() {
+        // 计算剩余已写总数
+        int size = writeCount - readCount;
+        // 设置读取总数为0
+        putReadCount(0);
+        // 设置已写的数量
+        putWriteCount(size);
+        // 这时说明没有数据在磁盘中
+        if (size == 0 && readNum == writeNum) {
+            putReadPosition(0);
+            putWritePosition(0);
+        }
+    }
+
+    protected final void doClose() throws IOException {
+        doSync();
         LocalCleaner.clean(writeIndex);
         LocalCleaner.clean(readIndex);
         channel.close();
         raf.close();
     }
+
+    public abstract int readNum();
+
+    public abstract int readPosition();
+
+    public abstract int readCount();
+
+    public abstract int writeNum();
+
+    public abstract int writePosition();
+
+    public abstract int writeCount();
+
+    public abstract void putWN(int writeNum);
+
+    public abstract void putWP(int writePosition);
+
+    public abstract void putWC(int writeCount);
+
+    public abstract void putRN(int readNum);
+
+    public abstract void putRP(int readPosition);
+
+    public abstract void putRC(int readCount);
 
 }
