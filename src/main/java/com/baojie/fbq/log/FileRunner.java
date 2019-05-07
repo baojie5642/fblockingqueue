@@ -15,7 +15,7 @@
  */
 package com.baojie.fbq.log;
 
-import com.baojie.fbq.MappedByteBufferUtil;
+import com.baojie.fbq.LocalCleaner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -96,7 +96,7 @@ public class FileRunner implements Runnable {
             mappedByteBuffer.putInt(-1);// 12next fileindex
             mappedByteBuffer.putInt(-2);// 16
             mappedByteBuffer.force();
-            MappedByteBufferUtil.clean(mappedByteBuffer);
+            LocalCleaner.clean(mappedByteBuffer);
             fc.close();
             raFile.close();
             return true;

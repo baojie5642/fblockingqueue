@@ -21,12 +21,45 @@
   </properties>
 
   <dependencies>
+
+    <!-- https://mvnrepository.com/artifact/io.protostuff/protostuff-core -->
+    <dependency>
+      <groupId>io.protostuff</groupId>
+      <artifactId>protostuff-core</artifactId>
+      <version>1.6.0</version>
+    </dependency>
+    <!-- https://mvnrepository.com/artifact/io.protostuff/protostuff-api -->
+    <dependency>
+      <groupId>io.protostuff</groupId>
+      <artifactId>protostuff-api</artifactId>
+      <version>1.6.0</version>
+    </dependency>
+    <!-- https://mvnrepository.com/artifact/io.protostuff/protostuff-runtime -->
+    <dependency>
+      <groupId>io.protostuff</groupId>
+      <artifactId>protostuff-runtime</artifactId>
+      <version>1.6.0</version>
+    </dependency>
+    <!-- https://mvnrepository.com/artifact/io.protostuff/protostuff-collectionschema -->
+    <dependency>
+      <groupId>io.protostuff</groupId>
+      <artifactId>protostuff-collectionschema</artifactId>
+      <version>1.6.0</version>
+    </dependency>
+    <!-- https://mvnrepository.com/artifact/org.objenesis/objenesis -->
+    <dependency>
+      <groupId>org.objenesis</groupId>
+      <artifactId>objenesis</artifactId>
+      <version>3.0.1</version>
+    </dependency>
+
+
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
       <version>4.12</version>
-      <scope>test</scope>
     </dependency>
+
 
     <dependency>
       <groupId>log4j</groupId>

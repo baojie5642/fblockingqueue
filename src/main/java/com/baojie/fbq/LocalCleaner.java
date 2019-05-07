@@ -26,41 +26,24 @@ import java.nio.MappedByteBuffer;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 
-public class MappedByteBufferUtil {
+public class LocalCleaner {
 
-    private static final Logger log = LoggerFactory.getLogger(MappedByteBufferUtil.class);
+    private static final Logger log = LoggerFactory.getLogger(LocalCleaner.class);
 
     private static final String CLEAN_KEY = "cleaner";
 
-    private MappedByteBufferUtil() {
+    private LocalCleaner() {
         throw new IllegalArgumentException();
     }
 
     public static final void clean(final Object buffer) {
-        if (null == buffer) {
-            return;
-        } else {
+        if (null != buffer) {
             doClean(buffer);
         }
     }
 
     private static final void doClean(final Object buffer) {
-        AccessController.doPrivileged(new PrivilegedAction() {
-            public Object run() {
-                try {
-                    Method clean = cleanMethod(buffer);
-                    if (null == clean) {
-                        unmap(buffer);
-                    } else {
-                        clean.setAccessible(true);
-                        doInvoke(clean, buffer);
-                    }
-                } catch (Exception e) {
-                    log.error(e.toString(), e);
-                }
-                return null;
-            }
-        });
+        AccessController.doPrivileged(new LocalAction(buffer));
     }
 
     private static final Method cleanMethod(final Object buffer) {
@@ -73,29 +56,55 @@ public class MappedByteBufferUtil {
     }
 
     private static final void doInvoke(final Method clean, final Object buffer) {
-        Cleaner cleaner = null;
+        sun.misc.Cleaner cleaner = null;
         try {
-            cleaner = (Cleaner) clean.invoke(buffer, new Object[0]);
+            cleaner = (sun.misc.Cleaner) clean.invoke(buffer, new Object[0]);
             cleaner.clean();
         } catch (IllegalAccessException e) {
             log.error(e.toString(), e);
+            unmap(buffer);
         } catch (InvocationTargetException e) {
             log.error(e.toString(), e);
+            unmap(buffer);
         }
     }
 
-    private static final void unmap(final Object buffer) {
-        if (null == buffer) {
-            return;
-        }
-        if (!(buffer instanceof MappedByteBuffer)) {
-            return;
-        } else {
-            Cleaner cl = ((DirectBuffer) buffer).cleaner();
-            if (cl != null) {
-                cl.clean();
+    public static final void unmap(final Object buffer) {
+        if (null != buffer) {
+            if (buffer instanceof MappedByteBuffer) {
+                Cleaner cl = ((DirectBuffer) buffer).cleaner();
+                if (cl != null) {
+                    cl.clean();
+                }
             }
         }
+    }
+
+    private static final class LocalAction implements PrivilegedAction<Void> {
+
+        private final Object buffer;
+
+        public LocalAction(final Object buffer) {
+            this.buffer = buffer;
+        }
+
+        @Override
+        public Void run() {
+            try {
+                Method clean = cleanMethod(buffer);
+                if (null == clean) {
+                    unmap(buffer);
+                } else {
+                    clean.setAccessible(true);
+                    doInvoke(clean, buffer);
+                }
+            } catch (Exception e) {
+                log.error(e.toString(), e);
+                unmap(buffer);
+            }
+            return null;
+        }
+
     }
 
 }
