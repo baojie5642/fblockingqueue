@@ -1,83 +1,80 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-  <modelVersion>4.0.0</modelVersion>
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
 
-  <groupId>com.baojie.fbq</groupId>
-  <artifactId>fblockingqueue</artifactId>
-  <version>1.0-SNAPSHOT</version>
+    <groupId>com.baojie.fbq</groupId>
+    <artifactId>fblockingqueue</artifactId>
+    <version>1.0-SNAPSHOT</version>
 
-  <name>fblockingqueue</name>
-  <!-- FIXME change it to the project's website -->
-  <url>http://www.example.com</url>
+    <name>fblockingqueue</name>
+    <!-- FIXME change it to the project's website -->
+    <url>http://www.example.com</url>
 
-  <properties>
-    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <maven.compiler.source>1.8</maven.compiler.source>
-    <maven.compiler.target>1.8</maven.compiler.target>
-    <slf4j.version>1.7.26</slf4j.version>
-    <log4j.version>1.2.17</log4j.version>
-  </properties>
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.source>1.8</maven.compiler.source>
+        <maven.compiler.target>1.8</maven.compiler.target>
+        <protostuff.version>1.6.0</protostuff.version>
+        <objenesis.version>3.0.1</objenesis.version>
+        <logback.version>1.2.3</logback.version>
+        <slf4j.version>1.7.26</slf4j.version>
+    </properties>
 
-  <dependencies>
+    <dependencies>
 
-    <!-- https://mvnrepository.com/artifact/io.protostuff/protostuff-core -->
-    <dependency>
-      <groupId>io.protostuff</groupId>
-      <artifactId>protostuff-core</artifactId>
-      <version>1.6.0</version>
-    </dependency>
-    <!-- https://mvnrepository.com/artifact/io.protostuff/protostuff-api -->
-    <dependency>
-      <groupId>io.protostuff</groupId>
-      <artifactId>protostuff-api</artifactId>
-      <version>1.6.0</version>
-    </dependency>
-    <!-- https://mvnrepository.com/artifact/io.protostuff/protostuff-runtime -->
-    <dependency>
-      <groupId>io.protostuff</groupId>
-      <artifactId>protostuff-runtime</artifactId>
-      <version>1.6.0</version>
-    </dependency>
-    <!-- https://mvnrepository.com/artifact/io.protostuff/protostuff-collectionschema -->
-    <dependency>
-      <groupId>io.protostuff</groupId>
-      <artifactId>protostuff-collectionschema</artifactId>
-      <version>1.6.0</version>
-    </dependency>
-    <!-- https://mvnrepository.com/artifact/org.objenesis/objenesis -->
-    <dependency>
-      <groupId>org.objenesis</groupId>
-      <artifactId>objenesis</artifactId>
-      <version>3.0.1</version>
-    </dependency>
+        <!-- https://mvnrepository.com/artifact/io.protostuff/protostuff-core -->
+        <dependency>
+            <groupId>io.protostuff</groupId>
+            <artifactId>protostuff-core</artifactId>
+            <version>${protostuff.version}</version>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/io.protostuff/protostuff-api -->
+        <dependency>
+            <groupId>io.protostuff</groupId>
+            <artifactId>protostuff-api</artifactId>
+            <version>${protostuff.version}</version>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/io.protostuff/protostuff-runtime -->
+        <dependency>
+            <groupId>io.protostuff</groupId>
+            <artifactId>protostuff-runtime</artifactId>
+            <version>${protostuff.version}</version>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/io.protostuff/protostuff-collectionschema -->
+        <dependency>
+            <groupId>io.protostuff</groupId>
+            <artifactId>protostuff-collectionschema</artifactId>
+            <version>${protostuff.version}</version>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/org.objenesis/objenesis -->
+        <dependency>
+            <groupId>org.objenesis</groupId>
+            <artifactId>objenesis</artifactId>
+            <version>${objenesis.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.12</version>
+        </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>${logback.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>${slf4j.version}</version>
+        </dependency>
+    </dependencies>
 
-
-    <dependency>
-      <groupId>junit</groupId>
-      <artifactId>junit</artifactId>
-      <version>4.12</version>
-    </dependency>
-
-
-    <dependency>
-      <groupId>log4j</groupId>
-      <artifactId>log4j</artifactId>
-      <version>${log4j.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>slf4j-api</artifactId>
-      <version>${slf4j.version}</version>
-    </dependency>
-
-  </dependencies>
-
-  <build>
-    <pluginManagement><!-- lock down plugins versions to avoid using Maven defaults (may be moved to parent pom) -->
+    <build>
+        <pluginManagement><!-- lock down plugins versions to avoid using Maven defaults (may be moved to parent pom) -->
 
 
-    </pluginManagement>
-  </build>
+        </pluginManagement>
+    </build>
 </project>

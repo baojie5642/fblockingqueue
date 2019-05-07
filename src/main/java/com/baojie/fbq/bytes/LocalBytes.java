@@ -120,15 +120,4 @@ public final class LocalBytes {
         return null;
     }
 
-    public static void main(String args[]) {
-        long start = System.currentTimeMillis();
-        for (int i = 0; i < 100000000; i++) {
-            byte[] sou = seria(new TestSer(i + "", i));
-            TestSer ok = deseria(sou, TestSer.class);
-            ok.run();
-        }
-        long end = System.currentTimeMillis();
-        System.out.println("cust=" + (end - start));
-    }
-
 }
