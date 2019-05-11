@@ -79,6 +79,9 @@ public final class LocalBytes {
         if (null == bytes || null == cls) {
             throw new NullPointerException();
         }
+        if (bytes.length <= 0) {
+            throw new IllegalArgumentException();
+        }
         T tmp = instance(cls);
         if (null == tmp) {
             throw new IllegalStateException();
