@@ -15,10 +15,11 @@
  */
 package com.baojie.fbq;
 
-import com.baojie.fbq.exception.FileFormatException;
+import com.baojie.fbq.exception.FileFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.AbstractQueue;
 import java.util.Collection;
@@ -35,14 +36,39 @@ public class FQueue extends AbstractQueue<byte[]> implements BlockingQueue<byte[
 	private static final long serialVersionUID = -5960741434564940154L;
 	private FSQueue fsQueue = null;
 	private static final Logger log = LoggerFactory.getLogger(FQueue.class);
+	
 	private Lock lock = new ReentrantReadWriteLock().writeLock();
 
-	public FQueue(String path) throws Exception {
-		fsQueue = new FSQueue(path, 1024 * 1024 * 300);
+	public FQueue(String path) throws IOException, FileFormat {
+		fsQueue = new FSQueue(path);
 	}
 
-	public FQueue(String path, int logsize) throws Exception {
-		fsQueue = new FSQueue(path, logsize);
+	/**
+	 * 创建一个持久化队列
+	 *
+	 * @param path              文件的存储路径
+	 * @param entityLimitLength 存储数据的单个文件的大小
+	 * @throws IOException
+	 * @throws FileFormat
+	 */
+	public FQueue(String path, int entityLimitLength) throws IOException, FileFormat {
+		fsQueue = new FSQueue(path, entityLimitLength);
+	}
+
+	public FQueue(File dir) throws IOException, FileFormat {
+		fsQueue = new FSQueue(dir);
+	}
+
+	/**
+	 * 创建一个持久化队列
+	 *
+	 * @param dir               文件的存储目录
+	 * @param entityLimitLength 存储数据的单个文件的大小
+	 * @throws IOException
+	 * @throws FileFormat
+	 */
+	public FQueue(File dir, int entityLimitLength) throws IOException, FileFormat {
+		fsQueue = new FSQueue(dir, entityLimitLength);
 	}
 
 	@Override
@@ -52,7 +78,7 @@ public class FQueue extends AbstractQueue<byte[]> implements BlockingQueue<byte[
 
 	@Override
 	public int size() {
-		return fsQueue.getQueuSize();
+		return fsQueue.getQueueSize();
 	}
 
 	@Override
@@ -61,10 +87,9 @@ public class FQueue extends AbstractQueue<byte[]> implements BlockingQueue<byte[
 			lock.lock();
 			fsQueue.add(e);
 			return true;
-		} catch (IOException e1) {
-			e1.printStackTrace();
-		} catch (FileFormatException e1) {
-			e1.printStackTrace();
+		} catch (IOException ex) {
+			throw new RuntimeException(ex);
+		} catch (FileFormat ex) {
 		} finally {
 			lock.unlock();
 		}
@@ -108,7 +133,16 @@ public class FQueue extends AbstractQueue<byte[]> implements BlockingQueue<byte[
 
 	@Override
 	public byte[] peek() {
-		throw new UnsupportedOperationException("peek Unsupported now");
+		try {
+			lock.lock();
+			return fsQueue.readNext();
+		} catch (IOException ex) {
+			return null;
+		} catch (FileFormat ex) {
+			return null;
+		} finally {
+			lock.unlock();
+		}
 	}
 
 	@Override
@@ -116,18 +150,36 @@ public class FQueue extends AbstractQueue<byte[]> implements BlockingQueue<byte[
 		try {
 			lock.lock();
 			return fsQueue.readNextAndRemove();
-		} catch (IOException e) {
-			log.error(e.getMessage(), e);
+		} catch (IOException ex) {
 			return null;
-		} catch (FileFormatException e) {
-			log.error(e.getMessage(), e);
+		} catch (FileFormat ex) {
 			return null;
 		} finally {
 			lock.unlock();
 		}
 	}
 
-	public void close() {
+	@Override
+	public void clear() {
+		try {
+			lock.lock();
+			fsQueue.clear();
+		} catch (IOException ex) {
+			throw new RuntimeException(ex);
+		} catch (FileFormat e) {
+			// ignore
+		} finally {
+			lock.unlock();
+		}
+	}
+
+	/**
+	 * 关闭文件队列
+	 *
+	 * @throws IOException
+	 * @throws FileFormat
+	 */
+	public void close() throws IOException, FileFormat {
 		if (fsQueue != null) {
 			fsQueue.close();
 		}

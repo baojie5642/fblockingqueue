@@ -15,18 +15,15 @@
  */
 package com.baojie.fbq;
 
-import com.baojie.fbq.exception.FileEOFException;
-import com.baojie.fbq.exception.FileFormatException;
-import com.baojie.fbq.log.FileRunner;
-import com.baojie.fbq.log.LogEntity;
-import com.baojie.fbq.log.LogIndex;
+import com.baojie.fbq.exception.FileEOF;
+import com.baojie.fbq.exception.FileFormat;
+import com.baojie.fbq.log.Entity;
+import com.baojie.fbq.log.Index;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 /**
  * 完成基于文件的先进先出的读写功能
@@ -34,98 +31,86 @@ import java.util.concurrent.Executors;
 public class FSQueue {
 
     private static final Logger log = LoggerFactory.getLogger(FSQueue.class);
-    private static final String filePrefix = "fqueue";
-
-    private static final String prefix() {
-        return filePrefix;
-    }
-
-    private int fileLimitLength = 1024 * 1024 * 100;
-    private static final String dbName = "icqueue.db";
-    private static final String fileSeparator = System.getProperty("file.separator");
+    private int entityLimitLength;
     private String path = null;
-    private final ExecutorService executor = Executors.newSingleThreadExecutor();
-
-    private FileRunner deleteFileRunner;
     /**
      * 文件操作实例
      */
-    private LogIndex db = null;
-    private LogEntity writerHandle = null;
-    private LogEntity readerHandle = null;
+    private Index idx = null;
+    private Entity writerHandle = null;
+    private Entity readerHandle = null;
     /**
      * 文件操作位置信息
      */
     private int readerIndex = -1;
     private int writerIndex = -1;
 
-    public FSQueue(String path) throws Exception {
-        this(path, 1024 * 1024 * 150);
+    public FSQueue(String dir) throws IOException, FileFormat {
+        this(new File(dir));
     }
 
     /**
      * 在指定的目录中，以fileLimitLength为单个数据文件的最大大小限制初始化队列存储
      *
-     * @param dir             队列数据存储的路径
-     * @param fileLimitLength 单个数据文件的大小，不能超过2G
-     * @throws Exception
+     * @param dir               队列数据存储的路径
+     * @param entityLimitLength 单个数据文件的大小，不能超过2G
+     * @throws IOException
+     * @throws FileFormat
      */
-    public FSQueue(String dir, int fileLimitLength) throws Exception {
-        this.fileLimitLength = fileLimitLength;
-        File fileDir = new File(dir);
-        // 不存在并且不是文件夹
-        if (fileDir.exists() == false && fileDir.isDirectory() == false) {
-            if (fileDir.mkdirs() == false) {
-                throw new IOException("create dir error");
-            }
-        }
-        path = fileDir.getAbsolutePath();
-        // 打开db
-        db = new LogIndex(path + fileSeparator + dbName);
-        writerIndex = db.getWriterIndex();
-        readerIndex = db.getReaderIndex();
-        writerHandle = createLogEntity(path + fileSeparator + prefix() + "data_" + writerIndex + ".idb", db,
-                writerIndex);
-        if (readerIndex == writerIndex) {
-            readerHandle = writerHandle;
-        } else {
-            readerHandle = createLogEntity(path + fileSeparator + prefix() + "data_" + readerIndex + ".idb", db,
-                    readerIndex);
-        }
-        deleteFileRunner = new FileRunner(path + fileSeparator + prefix() + "data_", fileLimitLength);
-        executor.execute(deleteFileRunner);
+    public FSQueue(String dir, int entityLimitLength) throws IOException, FileFormat {
+        this(new File(dir), entityLimitLength);
+    }
+
+    public FSQueue(File dir) throws IOException, FileFormat {
+        this(dir, 1024 * 1024 * 2);
     }
 
     /**
-     * 创建或者获取一个数据读写实例
+     * 在指定的目录中，以fileLimitLength为单个数据文件的最大大小限制初始化队列存储
      *
-     * @param dbpath
-     * @param db
-     * @param fileNumber
-     * @return
+     * @param dir               队列数据存储的目录
+     * @param entityLimitLength 单个数据文件的大小，不能超过2G
      * @throws IOException
-     * @throws FileFormatException
+     * @throws FileFormat
      */
-    private LogEntity createLogEntity(String dbpath, LogIndex db, int fileNumber) throws IOException,
-            FileFormatException {
-        return new LogEntity(dbpath, db, fileNumber, this.fileLimitLength);
+    public FSQueue(File dir, int entityLimitLength) throws IOException, FileFormat {
+        if (dir.exists() == false && dir.isDirectory() == false) {
+            if (dir.mkdirs() == false) {
+                throw new IOException("create dir error");
+            }
+        }
+        this.entityLimitLength = entityLimitLength;
+        path = dir.getAbsolutePath();
+        // 打开索引文件
+        idx = new Index(path);
+        initHandle();
+    }
+
+    private void initHandle() throws IOException, FileFormat {
+        writerIndex = idx.getWriterIndex();
+        readerIndex = idx.getReaderIndex();
+        writerHandle = new Entity(path, writerIndex, entityLimitLength, idx);
+        if (readerIndex == writerIndex) {
+            readerHandle = writerHandle;
+        } else {
+            readerHandle = new Entity(path, readerIndex, entityLimitLength, idx);
+        }
     }
 
     /**
      * 一个文件的数据写入达到fileLimitLength的时候，滚动到下一个文件实例
      *
      * @throws IOException
-     * @throws FileFormatException
+     * @throws FileFormat
      */
-    private void rotateNextLogWriter() throws IOException, FileFormatException {
+    private void rotateNextLogWriter() throws IOException, FileFormat {
         writerIndex = writerIndex + 1;
-        writerHandle.putNextFile(writerIndex);
+        writerHandle.putNextFileNumber(writerIndex);
         if (readerHandle != writerHandle) {
             writerHandle.close();
         }
-        db.putWriterIndex(writerIndex);
-        writerHandle = createLogEntity(path + fileSeparator + prefix() + "data_" + writerIndex + ".idb", db,
-                writerIndex);
+        idx.putWriterIndex(writerIndex);
+        writerHandle = new Entity(path, writerIndex, entityLimitLength, idx, true);
     }
 
     /**
@@ -133,9 +118,9 @@ public class FSQueue {
      *
      * @param message message
      * @throws IOException
-     * @throws FileFormatException
+     * @throws FileFormat
      */
-    public void add(String message) throws IOException, FileFormatException {
+    public void add(String message) throws IOException, FileFormat {
         add(message.getBytes());
     }
 
@@ -144,18 +129,58 @@ public class FSQueue {
      *
      * @param message
      * @throws IOException
-     * @throws FileFormatException
+     * @throws FileFormat
      */
-    public void add(byte[] message) throws IOException, FileFormatException {
+    public void add(byte[] message) throws IOException, FileFormat {
         short status = writerHandle.write(message);
-        if (status == LogEntity.WRITEFULL) {
+        if (status == Entity.WRITEFULL) {
             rotateNextLogWriter();
             status = writerHandle.write(message);
         }
-        if (status == LogEntity.WRITESUCCESS) {
-            db.incrementSize();
+        if (status == Entity.WRITESUCCESS) {
+            idx.incrementSize();
         }
+    }
 
+    private byte[] read(boolean commit) throws IOException, FileFormat {
+        byte[] bytes;
+        try {
+            bytes = readerHandle.read(commit);
+        } catch (FileEOF e) {
+            int nextFileNumber = readerHandle.getNextFileNumber();
+            readerHandle.reset();
+            File deleteFile = readerHandle.getFile();
+            readerHandle.close();
+            deleteFile.delete();
+            // 更新下一次读取的位置和索引
+            idx.putReaderPosition(Entity.MESSAGE_START_POSITION);
+            idx.putReaderIndex(nextFileNumber);
+            if (writerHandle.getCurrentFileNumber() == nextFileNumber) {
+                readerHandle = writerHandle;
+            } else {
+                readerHandle = new Entity(path, nextFileNumber, entityLimitLength, idx);
+            }
+            try {
+                bytes = readerHandle.read(commit);
+            } catch (FileEOF e1) {
+                throw new FileFormat(e1);
+            }
+        }
+        if (commit && bytes != null) {
+            idx.decrementSize();
+        }
+        return bytes;
+    }
+
+    /**
+     * 读取队列头的数据，但不移除。
+     *
+     * @return
+     * @throws IOException
+     * @throws FileFormat
+     */
+    public byte[] readNext() throws IOException, FileFormat {
+        return read(false);
     }
 
     /**
@@ -163,46 +188,24 @@ public class FSQueue {
      *
      * @return
      * @throws IOException
-     * @throws FileFormatException
+     * @throws FileFormat
      */
-    public byte[] readNextAndRemove() throws IOException, FileFormatException {
-        byte[] b = null;
-        try {
-            b = readerHandle.readNextAndRemove();
-        } catch (FileEOFException e) {
-            int deleteNum = readerHandle.getCurrentFileNumber();
-            int nextfile = readerHandle.getNextFile();
-            readerHandle.close();
-            FileRunner.addDeleteFile(path + fileSeparator + prefix() + "data_" + deleteNum + ".idb");
-            // 更新下一次读取的位置和索引
-            db.putReaderPosition(LogEntity.messageStartPosition);
-            db.putReaderIndex(nextfile);
-            if (writerHandle.getCurrentFileNumber() == nextfile) {
-                readerHandle = writerHandle;
-            } else {
-                readerHandle = createLogEntity(path + fileSeparator + prefix() + "data_" + nextfile + ".idb", db,
-                        nextfile);
-            }
-            try {
-                b = readerHandle.readNextAndRemove();
-            } catch (FileEOFException e1) {
-                log.error("read new log file FileEOFException error occurred", e1);
-            }
-        }
-        if (b != null) {
-            db.decrementSize();
-        }
-        return b;
+    public byte[] readNextAndRemove() throws IOException, FileFormat {
+        return read(true);
     }
 
-    public void close() {
+    public void clear() throws IOException, FileFormat {
+        idx.clear();
+        initHandle();
+    }
+
+    public void close() throws IOException {
         readerHandle.close();
         writerHandle.close();
-        deleteFileRunner.exit();
-        executor.shutdown();
+        idx.close();
     }
 
-    public int getQueuSize() {
-        return db.getSize();
+    public int getQueueSize() {
+        return idx.getSize();
     }
 }

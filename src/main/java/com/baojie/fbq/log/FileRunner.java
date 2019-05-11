@@ -15,7 +15,7 @@
  */
 package com.baojie.fbq.log;
 
-import com.baojie.fbq.LocalCleaner;
+import com.baojie.fbq.clean.LocalCleaner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -91,7 +91,7 @@ public class FileRunner implements Runnable {
             RandomAccessFile raFile = new RandomAccessFile(file, "rwd");
             FileChannel fc = raFile.getChannel();
             MappedByteBuffer mappedByteBuffer = fc.map(MapMode.READ_WRITE, 0, this.fileLimitLength);
-            mappedByteBuffer.put(LogEntity.MAGIC.getBytes());
+            mappedByteBuffer.put(Entity.MAGIC.getBytes());
             mappedByteBuffer.putInt(1);// 8 version
             mappedByteBuffer.putInt(-1);// 12next fileindex
             mappedByteBuffer.putInt(-2);// 16

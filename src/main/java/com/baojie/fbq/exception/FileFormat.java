@@ -15,29 +15,24 @@
  */
 package com.baojie.fbq.exception;
 
-public class FileEOFException extends Exception {
+public class FileFormat extends Exception {
 
-	private static final long serialVersionUID = 4701796168682302255L;
+	private static final long serialVersionUID = 6950322066714479555L;
 
-	public FileEOFException() {
+	public FileFormat() {
 		super();
 	}
 
-	public FileEOFException(String message) {
+	public FileFormat(String message) {
 		super(message);
 	}
 
-	public FileEOFException(String message, Throwable cause) {
+	public FileFormat(String message, Throwable cause) {
 		super(message, cause);
 	}
 
-	public FileEOFException(Throwable cause) {
+	public FileFormat(Throwable cause) {
 		super(cause);
-	}
-
-	@Override
-	public  Throwable fillInStackTrace() {
-		return this;
 	}
 
 }
